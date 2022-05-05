@@ -10,7 +10,7 @@ import "../interfaces/IBeefyValutV6.sol";
 
 /// @title Beefy Battles Event
 /// @author Galmoli
-/// @notice First version of the Beefy Battles Event Contract. A user can only have one ticket to the event.
+/// @notice Entry ticket for Beefy Battles' Events
 contract BeefyBattlesEventV1 is Ownable, ERC721{
     using SafeERC20 for IERC20;
 

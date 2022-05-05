@@ -7,7 +7,7 @@ module.exports = {
   networks: {
     hardhat: {
       forking: {
-        url: process.env.KOVAN,
+        url: process.env.FTM_ARCHIVE,
       }
     },
     kovan:{
