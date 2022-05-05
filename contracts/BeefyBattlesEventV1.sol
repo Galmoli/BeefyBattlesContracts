@@ -5,18 +5,19 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
+import "./BeefyBattlesRewardPoolV1.sol";
 import "../interfaces/IBeefyValutV6.sol";
 
 /// @title Beefy Battles Event
 /// @author Galmoli
-/// @notice First version of the Beefy Battles Event Contract.
+/// @notice First version of the Beefy Battles Event Contract. A user can only have one ticket to the event.
 contract BeefyBattlesEventV1 is Ownable, ERC721{
     using SafeERC20 for IERC20;
 
     enum EVENT_STATE{ OPEN, CLOSED, WAITING_REWARDS, FINISHED}
 
     IERC20 want;
+    BeefyBattlesRewardPoolV1 rewardPool;
     IBeefyVaultV6 beefyVault;
     EVENT_STATE public eventState;
 
@@ -27,17 +28,25 @@ contract BeefyBattlesEventV1 is Ownable, ERC721{
     uint256 entranceFee;
     uint256 beefyFee;
     uint256 totalMultipliers;
-    uint256 eventRewards;
-    uint256[] rewardsBase;
 
-    mapping(address => uint256) public token;
+    mapping(address => uint256) public playerToToken;
     mapping(uint256 => uint256) public trophies;
     mapping(uint256 => uint256) public multiplier;
-    constructor(string memory _name, string memory _symbol, address _wantAddress, address _beefyVaultAddress, address _server) ERC721(_name, _symbol){
+    constructor(string memory _name, 
+                string memory _symbol, 
+                address _wantAddress, 
+                address _beefyVaultAddress, 
+                address _server,
+                uint256 _entranceFee,
+                uint256 _beefyFee) ERC721(_name, _symbol){
+        
         want = IERC20(_wantAddress);
+        rewardPool = new BeefyBattlesRewardPoolV1(_wantAddress, address(this));
         beefyVault = IBeefyVaultV6(_beefyVaultAddress);
         eventState = EVENT_STATE.CLOSED;
         server = _server;
+        entranceFee = _entranceFee;
+        beefyFee = _beefyFee;
         
         tokenCounter = 1;
 
@@ -47,9 +56,9 @@ contract BeefyBattlesEventV1 is Ownable, ERC721{
     /// @notice Deposits the token into the Beefy vault and send a NFT representing a participation in the event
     /// @param _multiplier The multiplier applied to the deposit fee 
     function deposit(uint256 _multiplier) public onlyOpenEvent {
-        require(token[msg.sender] == 0, "User already in event");
+        require(balanceOf(msg.sender) == 0, "User already in event");
 
-        token[msg.sender] = tokenCounter;
+        playerToToken[msg.sender] = tokenCounter;
         multiplier[tokenCounter] = _multiplier;
         totalMultipliers += _multiplier;
         players.push(msg.sender);
@@ -67,7 +76,7 @@ contract BeefyBattlesEventV1 is Ownable, ERC721{
     function withdraw(uint256 _tokenId) public onlyDeposited onlyOpenEvent {
         require(ownerOf(_tokenId) == msg.sender, "Not the owner");
 
-        token[msg.sender] = 0;
+        playerToToken[msg.sender] = 0;
         _burn(_tokenId);
 
         uint256 amountOfWant = (entranceFee + beefyFee) * multiplier[_tokenId];
@@ -80,9 +89,10 @@ contract BeefyBattlesEventV1 is Ownable, ERC721{
     /// @param _tokenId Token of the user who want to withdraw.
     function withdrawAndClaim(uint256 _tokenId) public onlyDeposited onlyFinishedEvent {
         withdraw(_tokenId);
-        uint256 rewards = _calculateRewards();
-        require(rewards <= want.balanceOf(address(this)));
-        want.safeTransfer(msg.sender, _calculateRewards());
+        rewardPool.claimRewards(msg.sender, 
+                                _calculateLeaderboardPosition(_tokenId), 
+                                multiplier[_tokenId], 
+                                _avgMultiplier());
     }
 
     /// @notice Withdraws all the deposited tokens from the Beefy vault and calculates the event rewards.
@@ -92,7 +102,8 @@ contract BeefyBattlesEventV1 is Ownable, ERC721{
         eventState = EVENT_STATE.FINISHED;
 
         beefyVault.withdrawAll();
-        eventRewards = want.balanceOf(address(this)) - entranceFee * totalMultipliers;
+        uint256 eventRewards = want.balanceOf(address(this)) - entranceFee * totalMultipliers;
+        want.safeTransfer(address(rewardPool), eventRewards);
     }
 
     /// @notice Posts the results of the battle. Can only be called by the server
@@ -101,11 +112,11 @@ contract BeefyBattlesEventV1 is Ownable, ERC721{
     /// @param _winnerTrophies Amount of trophies won by the winner
     /// @param _loserTrophies Amount of thropies lost by the loser
     function postResult(address _winner, address _loser, uint256 _winnerTrophies, uint256 _loserTrophies) public onlyServer {
-        require(token[_winner] != 0, "Winner doesn't exist in event");
-        require(token[_loser] != 0, "Loser doesn't exist in event");
+        require(balanceOf(_winner) != 0, "Winner doesn't exist in event");
+        require(balanceOf(_loser) != 0, "Loser doesn't exist in event");
 
-        trophies[token[_winner]] += _winnerTrophies;
-        trophies[token[_loser]] -= _loserTrophies;
+        trophies[playerToToken[_winner]] += _winnerTrophies;
+        trophies[playerToToken[_loser]] -= _loserTrophies;
     }
 
     /// @notice Opens the event. Now users can deposit.
@@ -114,27 +125,36 @@ contract BeefyBattlesEventV1 is Ownable, ERC721{
         eventState = EVENT_STATE.OPEN;
     }
 
-    function setRewardsBase(uint256[] memory _rewardsBase) public onlyOwner{
-        rewardsBase = _rewardsBase;
-    }
-
+    /// @notice Sets the server address.
+    /// @dev The server is used to post battle results via the postResult function.
     function setServer(address _server) public onlyOwner{
         server = _server;
     }
 
-    function _calculateRewards() internal view returns(uint256) {
+    /// @notice Calculates the position of the player in the leaderboard.
+    /// @dev First position in the leaderboard is 0.
+    function _calculateLeaderboardPosition(uint256 _tokenId) internal view returns(uint256) {
         uint256 playersAbove = 0;
         for(uint256 i = 0; i < players.length; i++){
             address p = players[i];
-            uint256 pt = trophies[token[msg.sender]];
+            uint256 pt = trophies[_tokenId];
             if(p != msg.sender){
-                uint256 t = trophies[token[p]];
+                uint256 t = trophies[playerToToken[p]];
                 if(t > pt){
                     playersAbove++;
                 }
             }
         }
-        return eventRewards * rewardsBase[playersAbove];
+        return playersAbove;
+    }
+
+    /// @notice Calculates the average multiplier of the event.
+    /// @dev Used to avoid giving over 100% of the rewards in the RewardPool.
+
+    function _avgMultiplier() internal view returns(uint256){
+        uint256 _mult = totalMultipliers * 1e18;
+        uint256 _players = players.length * 1e18;
+        return _mult / _players;
     }
 
     function _giveAllowances() internal {
@@ -147,7 +167,7 @@ contract BeefyBattlesEventV1 is Ownable, ERC721{
     }
 
     modifier onlyDeposited {
-        require(token[msg.sender] != 0, "User not in event");
+        require(balanceOf(msg.sender) != 0, "User not in event");
         _;
     }
 
