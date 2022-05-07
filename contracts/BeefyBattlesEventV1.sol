@@ -21,7 +21,7 @@ contract BeefyBattlesEventV1 is Ownable, ERC721{
     IBeefyVaultV6 beefyVault;
     EVENT_STATE public eventState;
 
-    address server;
+    address public server;
     address[] players;
 
     uint256 tokenCounter;
@@ -159,7 +159,7 @@ contract BeefyBattlesEventV1 is Ownable, ERC721{
     }
 
     modifier onlyServer {
-        require(msg.sender == server, "Not the server");
+        require(msg.sender == server, "Caller is not the server");
         _;
     }
 
