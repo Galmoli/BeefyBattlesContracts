@@ -4,7 +4,7 @@ const { airdropWant } = require("../scripts/utils");
 
 const wantAddress = "0x74b23882a30290451A17c44f4F05243b6b58C76d"; // WETH on Fantom
 const amount = hre.ethers.utils.parseEther("1");
-const impersonateAddress = "0x064917552B3121ED11321ecD8908fC79d00BcbB7";
+const addressWithWant = "0x064917552B3121ED11321ecD8908fC79d00BcbB7";
 
 describe("Utils", () => {
     before(async()=>{
@@ -17,7 +17,7 @@ describe("Utils", () => {
             WANT = await hre.ethers.getContractAt("IERC20", wantAddress);
         });
         it("Airdrop WETH to address", async () => {
-            await airdropWant(wantAddress, account.address, amount, impersonateAddress);
+            await airdropWant(wantAddress, account.address, amount, addressWithWant);
 
             wantAmount = hre.ethers.utils.formatEther(await WANT.balanceOf(account.address));
             expectedAmount = hre.ethers.utils.formatEther(amount);
@@ -26,7 +26,7 @@ describe("Utils", () => {
         });
         after(async() =>{
             balanceOfWant = await WANT.balanceOf(account.address);
-            tx = await WANT.transfer(impersonateAddress, balanceOfWant);
+            tx = await WANT.transfer(addressWithWant, balanceOfWant);
         });
     });
 })
