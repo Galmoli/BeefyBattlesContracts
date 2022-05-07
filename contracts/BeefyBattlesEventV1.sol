@@ -26,7 +26,6 @@ contract BeefyBattlesEventV1 is Ownable, ERC721{
 
     uint256 tokenCounter;
     uint256 entranceFee;
-    uint256 beefyFee;
     uint256 totalMultipliers;
 
     mapping(address => uint256) public playerToToken;
@@ -37,8 +36,7 @@ contract BeefyBattlesEventV1 is Ownable, ERC721{
                 address _wantAddress, 
                 address _beefyVaultAddress, 
                 address _server,
-                uint256 _entranceFee,
-                uint256 _beefyFee) ERC721(_name, _symbol){
+                uint256 _entranceFee) ERC721(_name, _symbol){
         
         want = IERC20(_wantAddress);
         rewardPool = new BeefyBattlesRewardPoolV1(_wantAddress, address(this));
@@ -46,7 +44,6 @@ contract BeefyBattlesEventV1 is Ownable, ERC721{
         eventState = EVENT_STATE.CLOSED;
         server = _server;
         entranceFee = _entranceFee;
-        beefyFee = _beefyFee;
         
         tokenCounter = 1;
 
@@ -63,7 +60,7 @@ contract BeefyBattlesEventV1 is Ownable, ERC721{
         totalMultipliers += _multiplier;
         players.push(msg.sender);
 
-        uint256 amountOfWant = (entranceFee + beefyFee) * _multiplier;
+        uint256 amountOfWant = entranceFee * _multiplier;
         want.safeTransferFrom(msg.sender, address(this), amountOfWant);
         beefyVault.deposit(amountOfWant);
 
@@ -79,7 +76,7 @@ contract BeefyBattlesEventV1 is Ownable, ERC721{
         playerToToken[msg.sender] = 0;
         _burn(_tokenId);
 
-        uint256 amountOfWant = (entranceFee + beefyFee) * multiplier[_tokenId];
+        uint256 amountOfWant = entranceFee * multiplier[_tokenId];
         uint256 amountOfShares = amountOfWant / beefyVault.getPricePerFullShare();
         beefyVault.withdraw(amountOfShares);
         want.safeTransfer(msg.sender, amountOfWant);
