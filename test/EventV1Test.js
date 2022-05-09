@@ -16,6 +16,7 @@ describe("Beefy Battles Event", () => {
         deployer = accounts[0];
         server = accounts[1];
         user = accounts[2];
+        secondaryUser = accounts[3];
 
         BBEvent = await hre.ethers.getContractFactory("BeefyBattlesEventV1", deployer);
         bbEvent = await BBEvent.deploy(name, symbol, wantAddress, beefyVaultAddress, server.address, entranceFee);
@@ -24,6 +25,9 @@ describe("Beefy Battles Event", () => {
         mooToken = await hre.ethers.getContractAt("IERC20", beefyVaultAddress);
 
         await bbEvent.deployed();
+
+        await airdropWant(wantAddress, user.address, hre.ethers.utils.parseEther("10"), addressWithWant);
+        await airdropWant(wantAddress, secondaryUser.address, hre.ethers.utils.parseEther("10"), addressWithWant);
     });
     describe("Server Logic", async ()=> {
         it("Sets Server", async() => {
@@ -45,8 +49,7 @@ describe("Beefy Battles Event", () => {
         });
         it("Deposit want", async () => {
             await bbEvent.connect(deployer).openEvent();
-
-            await airdropWant(wantAddress, user.address, hre.ethers.utils.parseEther("10"), addressWithWant);
+            
             await want.connect(user).approve(bbEvent.address, hre.ethers.utils.parseEther("10"));
             await bbEvent.connect(user).deposit(1);
 
@@ -56,10 +59,33 @@ describe("Beefy Battles Event", () => {
             expect(parseFloat(mooBalance)).to.greaterThan(5);
         });
         it("Receives ERC721 Ticket", async () => {
-
+            erc721Balance = await bbEvent.balanceOf(user.address)
+            expect(parseFloat(erc721Balance)).to.eq(1);
         });
         it("Can't deposit twice in event", async () => {
-
+            await expectRevert(bbEvent.connect(user).deposit(1), "User already deposited");
         });
     });
-})
+    describe("Withdraw Logic", async ()=> {
+        it("Can't withdraw another user's tokenId", async () => {
+            await want.connect(secondaryUser).approve(bbEvent.address, hre.ethers.utils.parseEther("10"));
+            await bbEvent.connect(secondaryUser).deposit(1);
+
+            await expectRevert(bbEvent.connect(user).withdraw(2), "Not the owner");
+        });
+        it("Gets the initial entry Fee", async () => {
+            await bbEvent.connect(user).approve(bbEvent.address, 1);
+            await bbEvent.connect(user).withdraw(1);
+
+            balanceOfWant = await want.balanceOf(user.address);
+            balanceOfWant = hre.ethers.utils.formatEther(balanceOfWant);            
+            entryFeeinEther = hre.ethers.utils.formatEther(entranceFee);
+
+            expect(balanceOfWant).to.eq(entryFeeinEther);
+        });
+        it("Burns the ERC721 Ticket", async () => {
+            erc721Balance = await bbEvent.balanceOf(user.address)
+            expect(parseFloat(erc721Balance)).to.eq(0);
+        });
+    });
+});
