@@ -1,6 +1,6 @@
 const hre = require("hardhat");
 const { expect } = require("chai");
-const { expectRevert } = require("@openzeppelin/test-helpers");
+const { expectRevert, time } = require("@openzeppelin/test-helpers");
 const { airdropWant } = require("../scripts/utils");
 
 const name = "BBEvent-DAI";
@@ -9,6 +9,7 @@ const wantAddress = "0x8D11eC38a3EB5E956B052f67Da8Bdc9bef8Abf3E";
 const beefyVaultAddress = "0x920786cff2A6f601975874Bb24C63f0115Df7dc8";
 const entranceFee = hre.ethers.utils.parseEther("10");
 const addressWithWant = "0xa75ede99f376dd47f3993bc77037f61b5737c6ea"; //Impersonated in airdropWant
+const eventLength = 100;
 
 describe("Beefy Battles Event", () => {
     before(async () =>{
@@ -17,9 +18,10 @@ describe("Beefy Battles Event", () => {
         server = accounts[1];
         user = accounts[2];
         secondaryUser = accounts[3];
+        endBlock = await (await hre.ethers.provider.getBlock("latest")).number + eventLength;
 
         BBEvent = await hre.ethers.getContractFactory("BeefyBattlesEventV1", deployer);
-        bbEvent = await BBEvent.deploy(name, symbol, wantAddress, beefyVaultAddress, server.address, entranceFee);
+        bbEvent = await BBEvent.deploy(name, symbol, wantAddress, beefyVaultAddress, server.address, entranceFee, endBlock);
 
         want = await hre.ethers.getContractAt("IERC20", wantAddress);
         mooToken = await hre.ethers.getContractAt("IERC20", beefyVaultAddress);
@@ -91,9 +93,12 @@ describe("Beefy Battles Event", () => {
     describe("Rewards Logic", async() => {
         before(async () => {
             await bbEvent.connect(user).deposit(1);
-            await bbEvent.connect(deployer).endEvent();
+        });
+        it("Can't harvest rewards if event hasn't ended", async () => {
+            await expectRevert(bbEvent.connect(user).harvestRewards(), "Event didn't end");
         });
         it("Harvests rewards", async() =>{
+            await time.advanceBlockTo(endBlock);
             await bbEvent.connect(user).harvestRewards();
 
             rewardPoolBalance = await want.balanceOf(await bbEvent.rewardPoolAddress());

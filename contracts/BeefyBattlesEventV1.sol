@@ -14,7 +14,7 @@ import "../interfaces/IBeefyValutV6.sol";
 contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
     using SafeERC20 for IERC20;
 
-    enum EVENT_STATE{ OPEN, CLOSED, WAITING_REWARDS, FINISHED}
+    enum EVENT_STATE{ OPEN, CLOSED, FINISHED}
 
     IERC20 want;
     BeefyBattlesRewardPoolV1 rewardPool;
@@ -27,6 +27,7 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
     uint256 entranceFee;
     uint256 totalMultipliers;
     uint256 tokenCounter;
+    uint256 public endEventBlock;
 
     mapping(uint256 => uint256) public trophies;
     mapping(uint256 => uint256) public multiplier;
@@ -35,7 +36,8 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
                 address _wantAddress, 
                 address _beefyVaultAddress, 
                 address _server,
-                uint256 _entranceFee) ERC721(_name, _symbol){
+                uint256 _entranceFee,
+                uint256 _endEventBlock) ERC721(_name, _symbol){
         
         want = IERC20(_wantAddress);
         rewardPool = new BeefyBattlesRewardPoolV1(_wantAddress, address(this));
@@ -43,6 +45,7 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
         eventState = EVENT_STATE.CLOSED;
         server = _server;
         entranceFee = _entranceFee;
+        endEventBlock = _endEventBlock;
         rewardPoolAddress = address(rewardPool);
         tokenCounter = 1;
 
@@ -92,8 +95,8 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
     }
 
     /// @notice Withdraws all the deposited tokens from the Beefy vault and calculates the event rewards.
-    function harvestRewards() public {
-        require(eventState == EVENT_STATE.WAITING_REWARDS);
+    function harvestRewards() public onlyOpenEvent{
+        require(block.number >= endEventBlock, "Event didn't end");
 
         eventState = EVENT_STATE.FINISHED;
 
@@ -103,8 +106,8 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
     }
 
     /// @notice Posts the results of the battle. Can only be called by the server
-    /// @param _winnerToken Winner's address
-    /// @param _loserToken Loser's address
+    /// @param _winnerToken Winner's tokenId
+    /// @param _loserToken Loser's tokenId
     /// @param _winnerTrophies Amount of trophies won by the winner
     /// @param _loserTrophies Amount of thropies lost by the loser
     function postResult(uint256 _winnerToken, uint256 _loserToken, uint256 _winnerTrophies, uint256 _loserTrophies) public onlyServer {
@@ -118,12 +121,6 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
     /// @dev This should be changed in the future so users can predeposit and it will start earning interest even before the event starts
     function openEvent() public onlyOwner {
         eventState = EVENT_STATE.OPEN;
-    }
-
-    /// @notice Closes the event. Now users can't deposit.
-    /// @dev This should be changed. Event closure should be block dependent.
-    function endEvent() public onlyOwner {
-        eventState = EVENT_STATE.WAITING_REWARDS;
     }
 
     /// @notice Sets the server address.
