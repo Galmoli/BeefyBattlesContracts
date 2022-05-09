@@ -87,7 +87,7 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
     function withdrawAndClaim(uint256 _tokenId) public onlyDeposited onlyFinishedEvent {
         withdraw(_tokenId);
         rewardPool.claimRewards(msg.sender, 
-                                _calculateLeaderboardPosition(_tokenId), 
+                                calculateLeaderboardPosition(_tokenId), 
                                 multiplier[_tokenId], 
                                 _avgMultiplier());
     }
@@ -134,7 +134,9 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
 
     /// @notice Calculates the position of the player in the leaderboard.
     /// @dev First position in the leaderboard is 0.
-    function _calculateLeaderboardPosition(uint256 _tokenId) internal view returns(uint256) {
+    function calculateLeaderboardPosition(uint256 _tokenId) public view returns(uint256) {
+        require(_exists(_tokenId), "Token doesn't exist");
+
         uint256 playersAbove = 0;
         for(uint256 i = 1; i <= totalSupply(); i++){
             uint256 pt = trophies[_tokenId];

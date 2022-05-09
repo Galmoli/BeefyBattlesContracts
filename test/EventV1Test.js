@@ -90,10 +90,20 @@ describe("Beefy Battles Event", () => {
             expect(parseFloat(erc721Balance)).to.eq(0);
         });
     });
-    describe("Rewards Logic", async() => {
+    describe("Battle results Logic", async () =>{
         before(async () => {
             await bbEvent.connect(user).deposit(1);
         });
+        it("Can't set result if token doesn't exist", async()=>{
+            await expectRevert(bbEvent.connect(server).postResult(10,2,10,0), "Token doesn't exist");
+        });
+        it("Sets the result", async () => {
+            await bbEvent.connect(server).postResult(3,2,10,0);
+            userPosition = await bbEvent.calculateLeaderboardPosition(3);
+            expect(userPosition.toNumber()).to.eq(0);
+        });
+    });
+    describe("Rewards Logic", async() => {
         it("Can't harvest rewards if event hasn't ended", async () => {
             await expectRevert(bbEvent.connect(user).harvestRewards(), "Event didn't end");
         });
