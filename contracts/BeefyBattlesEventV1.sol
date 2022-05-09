@@ -16,12 +16,11 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
 
     enum EVENT_STATE{ OPEN, CLOSED, FINISHED}
 
-    IERC20 want;
     BeefyBattlesRewardPoolV1 rewardPool;
-    IBeefyVaultV6 beefyVault;
     EVENT_STATE public eventState;
 
-    address public rewardPoolAddress;
+    address public want;
+    address public beefyVault;
     address public server;
 
     uint256 entranceFee;
@@ -33,20 +32,19 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
     mapping(uint256 => uint256) public multiplier;
     constructor(string memory _name, 
                 string memory _symbol, 
-                address _wantAddress, 
-                address _beefyVaultAddress, 
+                address _want, 
+                address _beefyVault, 
                 address _server,
                 uint256 _entranceFee,
                 uint256 _endEventBlock) ERC721(_name, _symbol){
         
-        want = IERC20(_wantAddress);
-        rewardPool = new BeefyBattlesRewardPoolV1(_wantAddress, address(this));
-        beefyVault = IBeefyVaultV6(_beefyVaultAddress);
+        want = _want;
+        rewardPool = new BeefyBattlesRewardPoolV1(_want, address(this));
+        beefyVault = _beefyVault;
         eventState = EVENT_STATE.CLOSED;
         server = _server;
         entranceFee = _entranceFee;
         endEventBlock = _endEventBlock;
-        rewardPoolAddress = address(rewardPool);
         tokenCounter = 1;
 
         _giveAllowances();
@@ -61,8 +59,8 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
         totalMultipliers += _multiplier;
 
         uint256 amountOfWant = entranceFee * _multiplier;
-        want.safeTransferFrom(msg.sender, address(this), amountOfWant);
-        beefyVault.deposit(amountOfWant);
+        IERC20(want).safeTransferFrom(msg.sender, address(this), amountOfWant);
+        IBeefyVaultV6(beefyVault).deposit(amountOfWant);
 
         _safeMint(msg.sender, tokenCounter);
         tokenCounter++;
@@ -76,9 +74,9 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
         _burn(_tokenId);
 
         uint256 amountOfWant = entranceFee * multiplier[_tokenId];
-        uint256 amountOfShares = (amountOfWant * 1e18) / beefyVault.getPricePerFullShare();
-        beefyVault.withdraw(amountOfShares);
-        want.safeTransfer(msg.sender, amountOfWant);
+        uint256 amountOfShares = (amountOfWant * 1e18) / IBeefyVaultV6(beefyVault).getPricePerFullShare();
+        IBeefyVaultV6(beefyVault).withdraw(amountOfShares);
+        IERC20(want).safeTransfer(msg.sender, amountOfWant);
 
         totalMultipliers -= multiplier[_tokenId];
         multiplier[_tokenId] = 0;
@@ -100,9 +98,9 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
 
         eventState = EVENT_STATE.FINISHED;
 
-        beefyVault.withdrawAll();
-        uint256 eventRewards = want.balanceOf(address(this)) - entranceFee * totalMultipliers;
-        want.safeTransfer(address(rewardPool), eventRewards);
+        IBeefyVaultV6(beefyVault).withdrawAll();
+        uint256 eventRewards = IERC20(want).balanceOf(address(this)) - entranceFee * totalMultipliers;
+        IERC20(want).safeTransfer(address(rewardPool), eventRewards);
     }
 
     /// @notice Posts the results of the battle. Can only be called by the server
@@ -127,6 +125,11 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
     /// @dev The server is used to post battle results via the postResult function.
     function setServer(address _server) public onlyOwner{
         server = _server;
+    }
+
+    /// @notice Returns Event's reward pool.
+    function getRewardPool() public view returns(address){
+        return address(rewardPool);
     }
 
     /// @notice Calculates the position of the player in the leaderboard.
@@ -155,7 +158,7 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
     }
 
     function _giveAllowances() internal {
-        want.safeApprove(address(beefyVault), type(uint256).max);
+        IERC20(want).safeApprove(address(beefyVault), type(uint256).max);
     }
 
     modifier onlyServer {

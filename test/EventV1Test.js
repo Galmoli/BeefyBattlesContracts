@@ -101,7 +101,7 @@ describe("Beefy Battles Event", () => {
             await time.advanceBlockTo(endBlock);
             await bbEvent.connect(user).harvestRewards();
 
-            rewardPoolBalance = await want.balanceOf(await bbEvent.rewardPoolAddress());
+            rewardPoolBalance = await want.balanceOf(await bbEvent.getRewardPool());
             rewardPoolBalance = hre.ethers.utils.formatEther(rewardPoolBalance);
 
             expect(parseFloat(rewardPoolBalance)).to.gt(0);
