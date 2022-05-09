@@ -50,7 +50,7 @@ describe("Beefy Battles Event", () => {
         it("Deposit want", async () => {
             await bbEvent.connect(deployer).openEvent();
             
-            await want.connect(user).approve(bbEvent.address, hre.ethers.utils.parseEther("10"));
+            await want.connect(user).approve(bbEvent.address, hre.ethers.utils.parseEther("10000"));
             await bbEvent.connect(user).deposit(1);
 
             mooBalance = await mooToken.balanceOf(bbEvent.address)
@@ -86,6 +86,20 @@ describe("Beefy Battles Event", () => {
         it("Burns the ERC721 Ticket", async () => {
             erc721Balance = await bbEvent.balanceOf(user.address)
             expect(parseFloat(erc721Balance)).to.eq(0);
+        });
+    });
+    describe("Rewards Logic", async() => {
+        before(async () => {
+            await bbEvent.connect(user).deposit(1);
+            await bbEvent.connect(deployer).endEvent();
+        });
+        it("Harvests rewards", async() =>{
+            await bbEvent.connect(user).harvestRewards();
+
+            rewardPoolBalance = await want.balanceOf(await bbEvent.rewardPoolAddress());
+            rewardPoolBalance = hre.ethers.utils.formatEther(rewardPoolBalance);
+
+            expect(parseFloat(rewardPoolBalance)).to.gt(0);
         });
     });
 });
