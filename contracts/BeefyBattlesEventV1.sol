@@ -21,10 +21,12 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
     IBeefyVaultV6 beefyVault;
     EVENT_STATE public eventState;
 
+    address public rewardPoolAddress;
     address public server;
 
     uint256 entranceFee;
     uint256 totalMultipliers;
+    uint256 tokenCounter;
 
     mapping(uint256 => uint256) public trophies;
     mapping(uint256 => uint256) public multiplier;
@@ -41,6 +43,8 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
         eventState = EVENT_STATE.CLOSED;
         server = _server;
         entranceFee = _entranceFee;
+        rewardPoolAddress = address(rewardPool);
+        tokenCounter = 1;
 
         _giveAllowances();
     }
@@ -50,14 +54,15 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
     function deposit(uint256 _multiplier) public onlyOpenEvent {
         require(balanceOf(msg.sender) == 0, "User already deposited");
 
-        multiplier[totalSupply() + 1] = _multiplier;
+        multiplier[tokenCounter] = _multiplier;
         totalMultipliers += _multiplier;
 
         uint256 amountOfWant = entranceFee * _multiplier;
         want.safeTransferFrom(msg.sender, address(this), amountOfWant);
         beefyVault.deposit(amountOfWant);
 
-        _safeMint(msg.sender, totalSupply() + 1);
+        _safeMint(msg.sender, tokenCounter);
+        tokenCounter++;
     }
 
     /// @notice Withdraws the amount deposited in the Beefy vault.
@@ -71,6 +76,9 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
         uint256 amountOfShares = (amountOfWant * 1e18) / beefyVault.getPricePerFullShare();
         beefyVault.withdraw(amountOfShares);
         want.safeTransfer(msg.sender, amountOfWant);
+
+        totalMultipliers -= multiplier[_tokenId];
+        multiplier[_tokenId] = 0;
     }
 
     /// @notice Withdraws the amount deposited in the Beefy vault and gives the rewards to the user depending on their position in the leaderboard.
@@ -110,6 +118,12 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
     /// @dev This should be changed in the future so users can predeposit and it will start earning interest even before the event starts
     function openEvent() public onlyOwner {
         eventState = EVENT_STATE.OPEN;
+    }
+
+    /// @notice Closes the event. Now users can't deposit.
+    /// @dev This should be changed. Event closure should be block dependent.
+    function endEvent() public onlyOwner {
+        eventState = EVENT_STATE.WAITING_REWARDS;
     }
 
     /// @notice Sets the server address.
