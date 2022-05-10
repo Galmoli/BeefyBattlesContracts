@@ -75,11 +75,11 @@ describe("Beefy Battles Event", () => {
             await want.connect(secondaryUser).approve(bbEvent.address, hre.ethers.utils.parseEther("10"));
             await bbEvent.connect(secondaryUser).deposit(1);
 
-            await expectRevert(bbEvent.connect(user).withdraw(2), "Not the owner");
+            await expectRevert(bbEvent.connect(user).withdrawEarly(2), "Not the owner");
         });
         it("Gets the initial entry Fee", async () => {
             await bbEvent.connect(user).approve(bbEvent.address, 1);
-            await bbEvent.connect(user).withdraw(1);
+            await bbEvent.connect(user).withdrawEarly(1);
 
             balanceOfWant = await want.balanceOf(user.address);
             balanceOfWant = hre.ethers.utils.formatEther(balanceOfWant);            
@@ -134,6 +134,21 @@ describe("Beefy Battles Event", () => {
             rewardPoolBalance = hre.ethers.utils.formatEther(rewardPoolBalance);
 
             expect(parseFloat(rewardPoolBalance)).to.gt(0);
+        });
+        it("Calculates the rewards correctly", async () => {
+            totalRewards = await rewardPool.eventRewards();
+            totalRewards = hre.ethers.utils.formatEther(totalRewards);
+
+            calculatedRewards = await rewardPool.calculateRewards(0,1,1);
+            calculatedRewards = hre.ethers.utils.formatEther(calculatedRewards);
+            expect(parseFloat(calculatedRewards)).to.be.closeTo(parseFloat(totalRewards) * 0.9, 1e-18);
+        });
+        it("Claims the rewards", async() => {
+            await bbEvent.connect(user).withdrawAndClaim(3);
+            userBalance = await want.balanceOf(user.address);
+            entryFeeinEther = hre.ethers.utils.formatEther(entranceFee);
+
+            expect(parseFloat(userBalance)).to.be.gt(parseFloat(entryFeeinEther));
         });
     });
 });
