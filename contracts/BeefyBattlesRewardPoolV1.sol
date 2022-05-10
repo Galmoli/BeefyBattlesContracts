@@ -11,16 +11,21 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract BeefyBattlesRewardPoolV1 is Ownable{
     using SafeERC20 for IERC20;
 
-    IERC20 want;
-
-    address eventAddress;
+    address public want;
+    address public eventAddress;
 
     uint256 eventRewards;
-    uint256[] rewardsBase;
+    uint256[] rewardBase;
 
-    constructor(address _wantAddress, address _eventAddress){
-        want = IERC20(_wantAddress);
+    constructor(address _want, address _eventAddress, address _eventOwner){
+        want = _want;
         eventAddress = _eventAddress;
+        _transferOwnership(_eventOwner);
+    }
+
+    /// @notice Notifies the reward pool that it received the rewards.
+    function notifyRewards() public {
+        eventRewards = IERC20(want).balanceOf(address(this));
     }
 
     /// @notice Function called from the Beefy Battles Event. It transfers the rewards to the player based on their position and multipliers.
@@ -31,21 +36,28 @@ contract BeefyBattlesRewardPoolV1 is Ownable{
     /// @param _avgMultiplier Average multiplier of the event.
     function claimRewards(address _player, uint256 _leaderboardPosition, uint256 _multiplier, uint256 _avgMultiplier) public onlyEventCall{
         uint256 rewards = _calculateRewards(_leaderboardPosition, _multiplier, _avgMultiplier);
-        want.safeTransfer(_player, rewards);
+        IERC20(want).safeTransfer(_player, rewards);
     }
 
     /// @notice Set the rewards base of the event. 
     /// @dev First position of the array is the first position of the leaderboard.  [10, 8 , 5, ...]
-    function setRewardsBase(uint256[] memory _rewardsBase) public onlyOwner{
-        rewardsBase = _rewardsBase;
+    /// @dev Rewards base is a 2 decimal number. So a reward base of 1 is 100.
+    function setRewardBase(uint256[] memory _rewardBase) public onlyOwner{
+        rewardBase = _rewardBase;
     }
 
+    function getRewardBase(uint256 _index) public view returns(uint256){
+        return rewardBase[_index];
+    }
+
+    /// @dev rewardsBase is a 2 decimal number. multiplier 0 decimal. _avgMultiplier 18 decimal.
     function _calculateRewards(uint256 _leaderboardPosition, uint256 _multiplier, uint256 _avgMultiplier) internal view returns(uint256) {
-        return (eventRewards * rewardsBase[_leaderboardPosition] * _multiplier) / _avgMultiplier;
+        uint256 ratio = ((rewardBase[_leaderboardPosition] * 1e16) * _multiplier * 1e18) / _avgMultiplier;
+        return (eventRewards * ratio) / 1e18;
     }
 
     modifier onlyEventCall {
-        require(msg.sender == eventAddress, "Not called from the event");
+        require(msg.sender == eventAddress, "Caller: not the event");
         _;
     }
 }

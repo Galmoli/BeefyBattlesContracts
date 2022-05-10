@@ -39,7 +39,7 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
                 uint256 _endEventBlock) ERC721(_name, _symbol){
         
         want = _want;
-        rewardPool = new BeefyBattlesRewardPoolV1(_want, address(this));
+        rewardPool = new BeefyBattlesRewardPoolV1(_want, address(this), owner());
         beefyVault = _beefyVault;
         eventState = EVENT_STATE.CLOSED;
         server = _server;
@@ -101,6 +101,7 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
         IBeefyVaultV6(beefyVault).withdrawAll();
         uint256 eventRewards = IERC20(want).balanceOf(address(this)) - entranceFee * totalMultipliers;
         IERC20(want).safeTransfer(address(rewardPool), eventRewards);
+        rewardPool.notifyRewards();
     }
 
     /// @notice Posts the results of the battle. Can only be called by the server

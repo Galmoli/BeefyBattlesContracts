@@ -25,6 +25,8 @@ describe("Beefy Battles Event", () => {
 
         want = await hre.ethers.getContractAt("IERC20", wantAddress);
         mooToken = await hre.ethers.getContractAt("IERC20", beefyVaultAddress);
+        rewardPoolAddress = await bbEvent.getRewardPool();
+        rewardPool = await hre.ethers.getContractAt("BeefyBattlesRewardPoolV1", rewardPoolAddress);
 
         await bbEvent.deployed();
 
@@ -103,6 +105,23 @@ describe("Beefy Battles Event", () => {
             expect(userPosition.toNumber()).to.eq(0);
         });
     });
+    describe("Reward Pool Logic", async() =>{
+        it("Owner of the Reward Pool is the same as Event's owner", async() => {
+            rewardPoolOwner = await rewardPool.owner();
+            bbEventOwner = await bbEvent.owner();
+            expect(rewardPoolOwner).to.eq(bbEventOwner);
+        });
+        it("Only event can call claimRewards", async() => {
+            await expectRevert(rewardPool.connect(user).claimRewards(user.address, 0, 1, 1), "Caller: not the event");
+        });
+        it("Sets the reward base", async() => {
+            await rewardPool.connect(deployer).setRewardBase([9000, 1000]);
+            firstPosRewardBase = await rewardPool.getRewardBase(0);
+            secondPosRewardBase = await rewardPool.getRewardBase(1);
+            expect(firstPosRewardBase.toNumber()).to.eq(9000);
+            expect(secondPosRewardBase.toNumber()).to.eq(1000);
+        });
+    })
     describe("Rewards Logic", async() => {
         it("Can't harvest rewards if event hasn't ended", async () => {
             await expectRevert(bbEvent.connect(user).harvestRewards(), "Event didn't end");
