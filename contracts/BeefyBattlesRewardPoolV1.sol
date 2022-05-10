@@ -14,7 +14,7 @@ contract BeefyBattlesRewardPoolV1 is Ownable{
     address public want;
     address public eventAddress;
 
-    uint256 eventRewards;
+    uint256 public eventRewards;
     uint256[] rewardBase;
 
     constructor(address _want, address _eventAddress, address _eventOwner){
@@ -35,7 +35,7 @@ contract BeefyBattlesRewardPoolV1 is Ownable{
     /// @param _multiplier Player's multiplier.
     /// @param _avgMultiplier Average multiplier of the event.
     function claimRewards(address _player, uint256 _leaderboardPosition, uint256 _multiplier, uint256 _avgMultiplier) public onlyEventCall{
-        uint256 rewards = _calculateRewards(_leaderboardPosition, _multiplier, _avgMultiplier);
+        uint256 rewards = calculateRewards(_leaderboardPosition, _multiplier, _avgMultiplier);
         IERC20(want).safeTransfer(_player, rewards);
     }
 
@@ -51,8 +51,8 @@ contract BeefyBattlesRewardPoolV1 is Ownable{
     }
 
     /// @dev rewardsBase is a 2 decimal number. multiplier 0 decimal. _avgMultiplier 18 decimal.
-    function _calculateRewards(uint256 _leaderboardPosition, uint256 _multiplier, uint256 _avgMultiplier) internal view returns(uint256) {
-        uint256 ratio = ((rewardBase[_leaderboardPosition] * 1e16) * _multiplier * 1e18) / _avgMultiplier;
+    function calculateRewards(uint256 _leaderboardPosition, uint256 _multiplier, uint256 _avgMultiplier) public view returns(uint256) {
+        uint256 ratio = ((rewardBase[_leaderboardPosition] * 1e14) * _multiplier) / _avgMultiplier;
         return (eventRewards * ratio) / 1e18;
     }
 

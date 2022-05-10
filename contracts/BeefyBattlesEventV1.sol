@@ -66,9 +66,9 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
         tokenCounter++;
     }
 
-    /// @notice Withdraws the amount deposited in the Beefy vault.
+    /// @notice Withdraws the amount deposited in the Beefy vault while the event is still open.
     /// @param _tokenId Token of the user who want to withdraw.
-    function withdraw(uint256 _tokenId) public onlyDeposited onlyOpenEvent {
+    function withdrawEarly(uint256 _tokenId) public onlyDeposited onlyOpenEvent{
         require(ownerOf(_tokenId) == msg.sender, "Not the owner");
 
         _burn(_tokenId);
@@ -78,18 +78,24 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
         IBeefyVaultV6(beefyVault).withdraw(amountOfShares);
         IERC20(want).safeTransfer(msg.sender, amountOfWant);
 
-        totalMultipliers -= multiplier[_tokenId];
-        multiplier[_tokenId] = 0;
+        _clearMultiplier(_tokenId);
     }
 
     /// @notice Withdraws the amount deposited in the Beefy vault and gives the rewards to the user depending on their position in the leaderboard.
     /// @param _tokenId Token of the user who want to withdraw.
     function withdrawAndClaim(uint256 _tokenId) public onlyDeposited onlyFinishedEvent {
-        withdraw(_tokenId);
+        require(ownerOf(_tokenId) == msg.sender, "Not the owner");
+
+        _burn(_tokenId);
+
+        uint256 amountOfWant = entranceFee * multiplier[_tokenId];
+        IERC20(want).safeTransfer(msg.sender, amountOfWant);
         rewardPool.claimRewards(msg.sender, 
                                 calculateLeaderboardPosition(_tokenId), 
                                 multiplier[_tokenId], 
                                 _avgMultiplier());
+
+        _clearMultiplier(_tokenId);
     }
 
     /// @notice Withdraws all the deposited tokens from the Beefy vault and calculates the event rewards.
@@ -136,8 +142,6 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
     /// @notice Calculates the position of the player in the leaderboard.
     /// @dev First position in the leaderboard is 0.
     function calculateLeaderboardPosition(uint256 _tokenId) public view returns(uint256) {
-        require(_exists(_tokenId), "Token doesn't exist");
-
         uint256 playersAbove = 0;
         for(uint256 i = 1; i <= totalSupply(); i++){
             uint256 pt = trophies[_tokenId];
@@ -151,13 +155,18 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
         return playersAbove;
     }
 
+    /// @notice Removes the multiplier from _tokenId from totalMultipliers and sets _tokenId multiplier to 0
+    function _clearMultiplier(uint256 _tokenId) internal {
+        totalMultipliers -= multiplier[_tokenId];
+        multiplier[_tokenId] = 0;
+    }
+
     /// @notice Calculates the average multiplier of the event.
     /// @dev Used to avoid giving over 100% of the rewards in the RewardPool.
-
     function _avgMultiplier() internal view returns(uint256){
         uint256 _mult = totalMultipliers * 1e18;
         uint256 _participants = totalSupply() * 1e18;
-        return _mult / _participants;
+        return (_mult / _participants) * 1e18;
     }
 
     function _giveAllowances() internal {
