@@ -7,12 +7,8 @@ module.exports = {
   networks: {
     hardhat: {
       forking: {
-        url: process.env.FTM_ARCHIVE,
+        url: process.env.FTM,
       }
-    },
-    kovan:{
-      url: process.env.KOVAN,
-      account: process.env.PKEY
     }
   },
   etherscan: {

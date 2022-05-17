@@ -3,12 +3,12 @@ const { expect } = require("chai");
 const { expectRevert, time } = require("@openzeppelin/test-helpers");
 const { airdropWant } = require("../scripts/utils");
 
-const name = "BBEvent-DAI";
-const symbol = "BBE-DAI";
-const wantAddress = "0x8D11eC38a3EB5E956B052f67Da8Bdc9bef8Abf3E";
-const beefyVaultAddress = "0x920786cff2A6f601975874Bb24C63f0115Df7dc8";
+const name = "BBEvent-BOO";
+const symbol = "BBE-BOO";
+const wantAddress = "0x841FAD6EAe12c286d1Fd18d1d525DFfA75C7EFFE";
+const beefyVaultAddress = "0x15DD4398721733D8273FD4Ed9ac5eadC6c018866";
 const entranceFee = hre.ethers.utils.parseEther("10");
-const addressWithWant = "0xa75ede99f376dd47f3993bc77037f61b5737c6ea"; //Impersonated in airdropWant
+const addressWithWant = "0xD4FfFD3814D09c583D79Ee501D17F6F146aeFAC2"; //Impersonated in airdropWant
 const eventLength = 100;
 
 describe("Beefy Battles Event", () => {
@@ -60,7 +60,7 @@ describe("Beefy Battles Event", () => {
             mooBalance = await mooToken.balanceOf(bbEvent.address)
             mooBalance = hre.ethers.utils.formatEther(mooBalance);
 
-            expect(parseFloat(mooBalance)).to.greaterThan(5);
+            expect(parseFloat(mooBalance)).to.greaterThan(4);
         });
         it("Receives ERC721 Ticket", async () => {
             erc721Balance = await bbEvent.balanceOf(user.address)
