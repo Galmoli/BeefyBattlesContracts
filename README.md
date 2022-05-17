@@ -15,14 +15,31 @@
 
 ## Installation
 
-Execute the following commands in the project root folder:
+Run the following commands in the project root folder:
 
 ```jsx
 npm install
 ```
-This will install all the required dependencies
+This will install all the required dependencies.
+
+## Unit tests & Code Coverage
+Unit tests run on a HardHat network fork of the Fantom chain. Be sure to set the `FTM` key on the enviroment variables. 
+To run the unit tests and get a gas report, user the following command: 
+
+```jsx
+npx hardhat test --network localhost
+```
+
+To get code coverage report, run the following command:
+
+```jsx
+npx hardhat coverage
+```
+This will generate a report to `./coverage`. Open `./coverage/index.html` to check the report with more detail.
 
 ## Event Deployment Process
+
+Coming soon :)
 
 [license-badge]: https://img.shields.io/github/license/Galmoli/BeefyBattlesContracts?style=flat-square
 [issues]: https://img.shields.io/github/issues/Galmoli/BeefyBattlesContracts?style=flat-square
