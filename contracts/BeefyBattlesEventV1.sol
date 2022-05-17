@@ -143,10 +143,11 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
     /// @dev First position in the leaderboard is 0.
     function calculateLeaderboardPosition(uint256 _tokenId) public view returns(uint256) {
         uint256 playersAbove = 0;
-        for(uint256 i = 1; i <= totalSupply(); i++){
+        for(uint256 i = 0; i < totalSupply(); i++){
             uint256 tokenIdThropies = trophies[_tokenId];
-            if(i != _tokenId){
-                uint256 comparingToThropies = trophies[i];
+            uint256 comparingToTokenId = tokenByIndex(i);
+            if(comparingToTokenId != _tokenId){
+                uint256 comparingToThropies = trophies[comparingToTokenId];
                 if(comparingToThropies > tokenIdThropies){
                     playersAbove++;
                 }
