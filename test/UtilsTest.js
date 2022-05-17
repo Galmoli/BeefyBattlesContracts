@@ -4,7 +4,7 @@ const { airdropWant } = require("../scripts/utils");
 
 const wantAddress = "0x74b23882a30290451A17c44f4F05243b6b58C76d"; // WETH on Fantom
 const amount = hre.ethers.utils.parseEther("1");
-const addressWithWant = "0x064917552B3121ED11321ecD8908fC79d00BcbB7";
+const addressWithWant = "0x04d7c2ee4cdbac9a0fc46d3e35e79aba5cca471d";
 
 describe("Utils", () => {
     before(async()=>{

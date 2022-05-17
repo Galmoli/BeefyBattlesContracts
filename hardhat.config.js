@@ -1,5 +1,6 @@
 require("@nomiclabs/hardhat-ethers");
 require("@nomiclabs/hardhat-etherscan");
+require("hardhat-gas-reporter");
 require('dotenv').config();
 
 module.exports = {
@@ -17,6 +18,12 @@ module.exports = {
     apiKey: {
       kovan: process.env.ETHERSCAN_API_KEY
     }
+  },
+  gasReporter: {
+    currency: 'USD',
+    token: 'FTM',
+    gasPrice: 400,
+    coinmarketcap: '38344cee-5f67-479a-a2a5-708c349c548c'
   },
   solidity: {
     compilers: [

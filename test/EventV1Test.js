@@ -10,6 +10,8 @@ const beefyVaultAddress = "0x15DD4398721733D8273FD4Ed9ac5eadC6c018866";
 const entranceFee = hre.ethers.utils.parseEther("10");
 const addressWithWant = "0xD4FfFD3814D09c583D79Ee501D17F6F146aeFAC2"; //Impersonated in airdropWant
 const eventLength = 100;
+const rewardBase = [5000, 3000, 2000];
+const rewardBaseDecimal = [0.5, 0.3, 0.2];
 
 describe("Beefy Battles Event", () => {
     before(async () =>{
@@ -18,6 +20,7 @@ describe("Beefy Battles Event", () => {
         server = accounts[1];
         user = accounts[2];
         secondaryUser = accounts[3];
+        thirdUser = accounts[4];
         endBlock = await (await hre.ethers.provider.getBlock("latest")).number + eventLength;
 
         BBEvent = await hre.ethers.getContractFactory("BeefyBattlesEventV1", deployer);
@@ -32,6 +35,7 @@ describe("Beefy Battles Event", () => {
 
         await airdropWant(wantAddress, user.address, hre.ethers.utils.parseEther("10"), addressWithWant);
         await airdropWant(wantAddress, secondaryUser.address, hre.ethers.utils.parseEther("10"), addressWithWant);
+        await airdropWant(wantAddress, thirdUser.address, hre.ethers.utils.parseEther("10"), addressWithWant);
     });
     describe("Server Logic", async ()=> {
         it("Sets Server", async() => {
@@ -71,10 +75,13 @@ describe("Beefy Battles Event", () => {
         });
     });
     describe("Withdraw Logic", async ()=> {
-        it("Can't withdraw another user's tokenId", async () => {
-            await want.connect(secondaryUser).approve(bbEvent.address, hre.ethers.utils.parseEther("10"));
+        before(async() =>{
+            await want.connect(secondaryUser).approve(bbEvent.address, hre.ethers.utils.parseEther("10000"));
+            await want.connect(thirdUser).approve(bbEvent.address, hre.ethers.utils.parseEther("10000"));
             await bbEvent.connect(secondaryUser).deposit(1);
-
+            await bbEvent.connect(thirdUser).deposit(1);
+        });
+        it("Can't withdraw another user's tokenId", async () => {
             await expectRevert(bbEvent.connect(user).withdrawEarly(2), "Not the owner");
         });
         it("Gets the initial entry Fee", async () => {
@@ -91,17 +98,30 @@ describe("Beefy Battles Event", () => {
             erc721Balance = await bbEvent.balanceOf(user.address)
             expect(parseFloat(erc721Balance)).to.eq(0);
         });
+        it("Every player can withdraw", async () =>{
+            await bbEvent.connect(secondaryUser).approve(bbEvent.address, 2);
+            await bbEvent.connect(thirdUser).approve(bbEvent.address, 3);
+            await bbEvent.connect(secondaryUser).withdrawEarly(2);
+            await bbEvent.connect(thirdUser).withdrawEarly(3);
+
+            balanceOfWant = await want.balanceOf(thirdUser.address);
+            balanceOfWant = hre.ethers.utils.formatEther(balanceOfWant);            
+            entryFeeinEther = hre.ethers.utils.formatEther(entranceFee);
+
+            expect(balanceOfWant).to.eq(entryFeeinEther);
+        });
     });
     describe("Battle results Logic", async () =>{
         before(async () => {
             await bbEvent.connect(user).deposit(1);
+            await bbEvent.connect(secondaryUser).deposit(1);
         });
         it("Can't set result if token doesn't exist", async()=>{
-            await expectRevert(bbEvent.connect(server).postResult(10,2,10,0), "Token doesn't exist");
+            await expectRevert(bbEvent.connect(server).postResult(10,5,10,0), "Token doesn't exist");
         });
         it("Sets the result", async () => {
-            await bbEvent.connect(server).postResult(3,2,10,0);
-            userPosition = await bbEvent.calculateLeaderboardPosition(3);
+            await bbEvent.connect(server).postResult(4,5,10,0);
+            userPosition = await bbEvent.calculateLeaderboardPosition(4);
             expect(userPosition.toNumber()).to.eq(0);
         });
     });
@@ -115,11 +135,11 @@ describe("Beefy Battles Event", () => {
             await expectRevert(rewardPool.connect(user).claimRewards(user.address, 0, 1, 1), "Caller: not the event");
         });
         it("Sets the reward base", async() => {
-            await rewardPool.connect(deployer).setRewardBase([9000, 1000]);
+            await rewardPool.connect(deployer).setRewardBase(rewardBase);
             firstPosRewardBase = await rewardPool.getRewardBase(0);
             secondPosRewardBase = await rewardPool.getRewardBase(1);
-            expect(firstPosRewardBase.toNumber()).to.eq(9000);
-            expect(secondPosRewardBase.toNumber()).to.eq(1000);
+            expect(firstPosRewardBase.toNumber()).to.eq(rewardBase[0]);
+            expect(secondPosRewardBase.toNumber()).to.eq(rewardBase[1]);
         });
     })
     describe("Rewards Logic", async() => {
@@ -141,14 +161,19 @@ describe("Beefy Battles Event", () => {
 
             calculatedRewards = await rewardPool.calculateRewards(0,1,1);
             calculatedRewards = hre.ethers.utils.formatEther(calculatedRewards);
-            expect(parseFloat(calculatedRewards)).to.be.closeTo(parseFloat(totalRewards) * 0.9, 1e-18);
+            expect(parseFloat(calculatedRewards)).to.be.closeTo(parseFloat(totalRewards) * rewardBaseDecimal[0], 1e-18);
         });
         it("Claims the rewards", async() => {
-            await bbEvent.connect(user).withdrawAndClaim(3);
+            await bbEvent.connect(user).withdrawAndClaim(4);
             userBalance = await want.balanceOf(user.address);
             entryFeeinEther = hre.ethers.utils.formatEther(entranceFee);
 
             expect(parseFloat(userBalance)).to.be.gt(parseFloat(entryFeeinEther));
         });
     });
+    after(async() => {
+        await want.connect(user).transfer(addressWithWant, await want.balanceOf(user.address));
+        await want.connect(secondaryUser).transfer(addressWithWant, await want.balanceOf(secondaryUser.address));
+        await want.connect(thirdUser).transfer(addressWithWant, await want.balanceOf(thirdUser.address));
+    })
 });

@@ -75,7 +75,7 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
 
         uint256 amountOfWant = entranceFee * multiplier[_tokenId];
         uint256 amountOfShares = (amountOfWant * 1e18) / IBeefyVaultV6(beefyVault).getPricePerFullShare();
-        IBeefyVaultV6(beefyVault).withdraw(amountOfShares);
+        IBeefyVaultV6(beefyVault).withdraw(amountOfShares + 1);
         IERC20(want).safeTransfer(msg.sender, amountOfWant);
 
         _clearMultiplier(_tokenId);
