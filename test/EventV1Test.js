@@ -1,6 +1,6 @@
 const hre = require("hardhat");
 const { expect } = require("chai");
-const { expectRevert, time } = require("@openzeppelin/test-helpers");
+const { expectRevert } = require("@openzeppelin/test-helpers");
 const { airdropWant } = require("../scripts/utils");
 
 const name = "BBEvent-BOO";
@@ -122,7 +122,9 @@ describe("Beefy Battles Event", () => {
         it("Sets the result", async () => {
             await bbEvent.connect(server).postResult(4,5,10,0);
             userPosition = await bbEvent.calculateLeaderboardPosition(4);
+            secondaryUserPosition = await bbEvent.calculateLeaderboardPosition(5);
             expect(userPosition.toNumber()).to.eq(0);
+            expect(secondaryUserPosition.toNumber()).to.eq(1);
         });
     });
     describe("Reward Pool Logic", async() =>{
@@ -144,10 +146,10 @@ describe("Beefy Battles Event", () => {
     })
     describe("Rewards Logic", async() => {
         it("Can't harvest rewards if event hasn't ended", async () => {
-            await expectRevert(bbEvent.connect(user).harvestRewards(), "Event didn't end");
+            await expectRevert(bbEvent.connect(user).harvestRewards(), "EndEventBlock not reached");
         });
         it("Harvests rewards", async() =>{
-            await time.advanceBlockTo(endBlock);
+            await hre.timeAndMine.mine(eventLength);
             await bbEvent.connect(user).harvestRewards();
 
             rewardPoolBalance = await want.balanceOf(await bbEvent.getRewardPool());

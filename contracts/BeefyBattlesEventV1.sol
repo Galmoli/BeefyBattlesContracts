@@ -100,7 +100,7 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
 
     /// @notice Withdraws all the deposited tokens from the Beefy vault and calculates the event rewards.
     function harvestRewards() public onlyOpenEvent{
-        require(block.number >= endEventBlock, "Event didn't end");
+        require(block.number >= endEventBlock, "EndEventBlock not reached");
 
         eventState = EVENT_STATE.FINISHED;
 
@@ -144,10 +144,10 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
     function calculateLeaderboardPosition(uint256 _tokenId) public view returns(uint256) {
         uint256 playersAbove = 0;
         for(uint256 i = 1; i <= totalSupply(); i++){
-            uint256 pt = trophies[_tokenId];
+            uint256 tokenIdThropies = trophies[_tokenId];
             if(i != _tokenId){
-                uint256 t = trophies[i];
-                if(t > pt){
+                uint256 comparingToThropies = trophies[i];
+                if(comparingToThropies > tokenIdThropies){
                     playersAbove++;
                 }
             }
