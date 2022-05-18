@@ -68,9 +68,7 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
 
     /// @notice Withdraws the amount deposited in the Beefy vault while the event is still open.
     /// @param _tokenId Token of the user who want to withdraw.
-    function withdrawEarly(uint256 _tokenId) public onlyDeposited onlyOpenEvent{
-        require(ownerOf(_tokenId) == msg.sender, "Not the owner");
-
+    function withdrawEarly(uint256 _tokenId) public onlyTicketOwner(_tokenId) onlyDeposited onlyOpenEvent{
         _burn(_tokenId);
 
         uint256 amountOfWant = entranceFee * multiplier[_tokenId];
@@ -83,9 +81,7 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
 
     /// @notice Withdraws the amount deposited in the Beefy vault and gives the rewards to the user depending on their position in the leaderboard.
     /// @param _tokenId Token of the user who want to withdraw.
-    function withdrawAndClaim(uint256 _tokenId) public onlyDeposited onlyFinishedEvent {
-        require(ownerOf(_tokenId) == msg.sender, "Not the owner");
-
+    function withdrawAndClaim(uint256 _tokenId) public onlyTicketOwner(_tokenId) onlyDeposited onlyFinishedEvent {
         _burn(_tokenId);
 
         uint256 amountOfWant = entranceFee * multiplier[_tokenId];
@@ -176,6 +172,11 @@ contract BeefyBattlesEventV1 is Ownable, ERC721Enumerable{
 
     modifier onlyServer {
         require(msg.sender == server, "Caller is not the server");
+        _;
+    }
+
+    modifier onlyTicketOwner(uint256 _tokenId) {
+        require(ownerOf(_tokenId) == msg.sender, "Not the owner");
         _;
     }
 
