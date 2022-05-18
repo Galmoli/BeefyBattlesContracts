@@ -148,6 +148,9 @@ describe("Beefy Battles Event", () => {
         it("Can't harvest rewards if event hasn't ended", async () => {
             await expectRevert(bbEvent.connect(user).harvestRewards(), "EndEventBlock not reached");
         });
+        it("Can't withdraw and claim before event has finished", async() => {
+            await expectRevert(bbEvent.connect(user).withdrawAndClaim(4), "Event not finished");
+        });
         it("Harvests rewards", async() =>{
             await hre.timeAndMine.mine(eventLength);
             await bbEvent.connect(user).harvestRewards();
